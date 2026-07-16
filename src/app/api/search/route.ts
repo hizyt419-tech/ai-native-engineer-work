@@ -1,67 +1,109 @@
 import { NextResponse } from "next/server";
 
-// 每日推荐内容池 —— 类别 → 多条内容
-// 每天根据日期 hash 选出不同组合，模拟"每日推荐"
-const INSPIRATION_POOL = [
-  {
-    title: "🌅 每日金句",
-    snippet:
-      "「学而不思则罔，思而不学则殆。」—— 学习需要思考与实践并行，知识才能真正内化。今日不妨放慢脚步，仔细回味学过的内容。",
-    url: "",
-    source: "论语 · 为政",
-  },
-  {
-    title: "🚀 创造者思维",
-    snippet:
-      "The best way to predict the future is to invent it. 预测未来的最好方式，就是亲手创造它。代码、文字、设计——每一个创造都在塑造明天的世界。",
-    url: "",
-    source: "Alan Kay",
-  },
-  {
-    title: "🧠 费曼学习法",
-    snippet:
-      "如果你不能简单地解释一件事，说明你还没有真正理解它。试着把今天学到的概念讲给一个完全不懂的人听，你会发现知识缺口在哪里。",
-    url: "",
-    source: "Richard Feynman",
-  },
-  {
-    title: "💪 成长心态",
-    snippet:
-      "「三人行，必有我师焉。择其善者而从之，其不善者而改之。」—— 每个人都有值得学习的地方，保持开放的心态，每天进步1%。",
-    url: "",
-    source: "论语 · 述而",
-  },
-  {
-    title: "✨ 坚持的力量",
-    snippet:
-      "不积跬步，无以至千里；不积小流，无以成江海。每天学习的微小积累，终将汇成知识的海洋。今天学了什么不重要，重要的是今天学了。",
-    url: "",
-    source: "荀子 · 劝学",
-  },
-  {
-    title: "🎯 深度工作",
-    snippet:
-      "专注是把有限的时间与注意力，投入到最重要的事情上。关闭通知、远离手机、给自己一段不被打扰的学习时间。",
-    url: "",
-    source: "Cal Newport · Deep Work",
-  },
-  {
-    title: "🔍 好奇心驱动",
-    snippet:
-      "The important thing is not to stop questioning. Curiosity has its own reason for existing. —— 永远不要停止提问，好奇心是最好的老师。",
-    url: "",
-    source: "Albert Einstein",
-  },
-  {
-    title: "🌿 终身学习",
-    snippet:
-      "活到老，学到老。技术日新月异的时代，唯一不会过时的能力，就是持续学习的能力。把学习变成一种生活方式，而不是任务。",
-    url: "",
-    source: "终身学习理念",
-  },
-];
+// ======================== 知乎日报 API ========================
 
-const ENGLISH_POOL = [
+const ZHIHU_API = "https://news-at.zhihu.com/api/4/news/latest";
+
+interface ZhihuStory {
+  id: number;
+  title: string;
+  hint: string;
+  url: string;
+  images?: string[];
+}
+
+interface ZhihuStoryDetail {
+  id: number;
+  title: string;
+  body: string; // HTML
+  image?: string;
+  share_url: string;
+}
+
+// 去除 HTML 标签，提取纯文本
+function stripHtml(html: string): string {
+  return html
+    .replace(/<[^>]*>/g, "")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+async function fetchZhihuStories(): Promise<SearchResult[]> {
+  const results: SearchResult[] = [];
+  const seenIds = new Set<number>();
+
+  // 1. 获取今日列表
+  const listRes = await fetch(ZHIHU_API, {
+    signal: AbortSignal.timeout(5000),
+  });
+  if (!listRes.ok) return results;
+
+  const list = await listRes.json();
+  // 合并 top_stories 和 stories，去重
+  const allStories: ZhihuStory[] = [];
+  for (const s of list.top_stories || []) {
+    if (!seenIds.has(s.id)) {
+      allStories.push(s);
+      seenIds.add(s.id);
+    }
+  }
+  for (const s of list.stories || []) {
+    if (!seenIds.has(s.id)) {
+      allStories.push(s);
+      seenIds.add(s.id);
+    }
+  }
+
+  // 2. 获取文章详情（最多3篇）
+  for (const s of allStories.slice(0, 3)) {
+    try {
+      const detailRes = await fetch(
+        `https://news-at.zhihu.com/api/4/news/${s.id}`,
+        { signal: AbortSignal.timeout(4000) }
+      );
+      if (!detailRes.ok) continue;
+
+      const detail: ZhihuStoryDetail = await detailRes.json();
+      let plainText = stripHtml(detail.body || "");
+
+      // 知乎正文格式：作者简介 ... 查看知乎原文 ... 正文
+      // 截取「查看知乎原文」之后的部分，去掉作者介绍
+      const idx = plainText.indexOf("查看知乎原文");
+      if (idx !== -1) {
+        plainText = plainText.slice(idx + 6).trim();
+      } else {
+        // 如果没找到标记，就去掉开头的「作者 / xxx」
+        plainText = plainText.replace(/^作者\s*\/\s*\S+/, "").trim();
+      }
+      plainText = plainText.replace(/^\s+/, "");
+
+      results.push({
+        title: s.title,
+        snippet:
+          plainText.slice(0, 350) + (plainText.length > 350 ? "…" : ""),
+        url:
+          detail.share_url ||
+          s.url ||
+          `https://daily.zhihu.com/story/${s.id}`,
+        source: `知乎日报 · ${s.hint?.split("·")[0]?.trim() || "今日推荐"}`,
+      });
+    } catch {
+      continue;
+    }
+  }
+
+  return results;
+}
+
+// ======================== 英语内容池（兜底） ========================
+
+const ENGLISH_POOL: SearchResult[] = [
   {
     title: "📖 每日一句",
     snippet:
@@ -107,7 +149,7 @@ const ENGLISH_POOL = [
   {
     title: "🎯 语法点睛",
     snippet:
-      "虚拟语气 (Subjunctive)：\nIf I were you, I would start learning English today.\n如果我是你，我会今天就开���学英语。\n\n注意：不说 If I was you，而说 If I were you。",
+      "虚拟语气 (Subjunctive)：\nIf I were you, I would start learning English today.\n如果我是你，我会今天开始学英语。\n\n注意：不说 If I was you，而说 If I were you。",
     url: "",
     source: "英语语法",
   },
@@ -120,104 +162,54 @@ const ENGLISH_POOL = [
   },
 ];
 
-// 简单的日期哈希，用于每天选不同的内容
+// ======================== 搜索类型 ========================
+
+interface SearchResult {
+  title: string;
+  snippet: string;
+  url: string;
+  source: string;
+}
+
+// 日期哈希——每天选不同英语内容
 function dailyIndex(seed: number, max: number): number {
   const today = new Date();
   const dayOfYear = Math.floor(
-    (today.getTime() - new Date(today.getFullYear(), 0, 0).getTime()) /
-      86400000
+    (today.getTime() - new Date(today.getFullYear(), 0, 0).getTime()) / 86400000
   );
   return (dayOfYear * seed * 7 + seed * 13) % max;
 }
+
+// ======================== API 入口 ========================
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const category = searchParams.get("category") || "all";
 
-  // 尝试从 DuckDuckGo 搜索（免费、无需 API key）
-  let webResults: typeof INSPIRATION_POOL = [];
+  const results: SearchResult[] = [];
+  let sourceLabel = "";
 
+  // ---- 灵感：知乎日报 ----
   if (category === "inspiration" || category === "all") {
-    try {
-      const query = "每日金句 学习动力 名言";
-      const res = await fetch(
-        `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_html=1&skip_disambig=1`,
-        { signal: AbortSignal.timeout(5000) }
-      );
-      if (res.ok) {
-        const data = await res.json();
-        const topics = data.RelatedTopics?.slice(0, 2) || [];
-        const webItems = topics
-          .filter((t: { Text?: string; FirstURL?: string }) => t.Text)
-          .map((t: { Text: string; FirstURL: string }) => ({
-            title: "🔗 网络推荐",
-            snippet: t.Text.split(" - ")[0]?.slice(0, 300) || t.Text.slice(0, 300),
-            url: t.FirstURL || "",
-            source: "网络搜索",
-          }));
-        if (webItems.length > 0) {
-          webResults = [...webResults, ...webItems];
-        }
-      }
-    } catch {
-      // 搜索失败不影响，用内容池兜底
+    const zhihu = await fetchZhihuStories();
+    if (zhihu.length > 0) {
+      results.push(...zhihu);
+      sourceLabel = "知乎日报";
     }
+    // 如果知乎日报失败，不兜底——直接显示错误让用户知道
   }
 
-  if (category === "english" || category === "all") {
-    try {
-      const query = "learn English daily tip vocabulary";
-      const res = await fetch(
-        `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_html=1&skip_disambig=1`,
-        { signal: AbortSignal.timeout(5000) }
-      );
-      if (res.ok) {
-        const data = await res.json();
-        const topics = data.RelatedTopics?.slice(0, 2) || [];
-        const webItems = topics
-          .filter((t: { Text?: string; FirstURL?: string }) => t.Text)
-          .map((t: { Text: string; FirstURL: string }) => ({
-            title: "🔗 English Tip",
-            snippet: t.Text.split(" - ")[0]?.slice(0, 300) || t.Text.slice(0, 300),
-            url: t.FirstURL || "",
-            source: "Web Search",
-          }));
-        if (webItems.length > 0) {
-          webResults = [...webResults, ...webItems];
-        }
-      }
-    } catch {
-      // ignore
-    }
-  }
-
-  // 从内容池按日期选取（确保每天内容不同）
-  let poolItems: typeof INSPIRATION_POOL = [];
-
-  if (category === "inspiration" || category === "all") {
-    const idx = dailyIndex(42, INSPIRATION_POOL.length);
-    const selected: typeof INSPIRATION_POOL = [];
-    for (let i = 0; i < 2; i++) {
-      selected.push(INSPIRATION_POOL[(idx + i) % INSPIRATION_POOL.length]);
-    }
-    poolItems = [...poolItems, ...selected];
-  }
-
+  // ---- 英语：预设内容池 ----
   if (category === "english" || category === "all") {
     const idx = dailyIndex(7, ENGLISH_POOL.length);
-    const selected: typeof ENGLISH_POOL = [];
     for (let i = 0; i < 2; i++) {
-      selected.push(ENGLISH_POOL[(idx + i) % ENGLISH_POOL.length]);
+      results.push(ENGLISH_POOL[(idx + i) % ENGLISH_POOL.length]);
     }
-    poolItems = [...poolItems, ...selected];
   }
 
-  // 合并网络结果和内容池结果
-  const allResults = [...webResults, ...poolItems];
-
   return NextResponse.json({
-    results: allResults,
+    results,
     searched_at: new Date().toISOString(),
-    from_cache: webResults.length === 0,
+    source: sourceLabel || (category === "english" ? "内置内容池" : ""),
   });
 }
