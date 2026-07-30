@@ -15,12 +15,7 @@ interface SectionProps {
 }
 
 export default function Section({
-  sectionKey,
-  tasks,
-  onAdd,
-  onToggle,
-  onDelete,
-  onUpdateDuration,
+  sectionKey, tasks, onAdd, onToggle, onDelete, onUpdateDuration,
 }: SectionProps) {
   const config = getSectionConfig(sectionKey);
   const [input, setInput] = useState("");
@@ -29,35 +24,26 @@ export default function Section({
   const [rate, setRate] = useState("");
   const [showRate, setShowRate] = useState(false);
 
-  // 该板块是否支持可选计时
   const canChooseTimed = config.timed === null;
 
   const handleSubmit = () => {
     if (!input.trim()) return;
-
     onAdd({
-      board_id: tasks[0]?.board_id ?? 0, // 由父组件填充
+      board_id: tasks[0]?.board_id ?? 0,
       section: sectionKey,
       title: input.trim(),
       is_timed: asTimed,
       hourly_rate: asTimed && rate ? parseInt(rate) : null,
     });
-
-    setInput("");
-    setShowInput(false);
+    setInput(""); setShowInput(false);
     setAsTimed(config.timed === true);
-    setRate("");
-    setShowRate(false);
+    setRate(""); setShowRate(false);
   };
 
-  // 计算总金额
   const totalEarnings = tasks.reduce((sum, t) => {
-    if (t.hourly_rate && t.duration_sec > 0) {
-      return sum + (t.hourly_rate / 3600) * t.duration_sec;
-    }
+    if (t.hourly_rate && t.duration_sec > 0) return sum + (t.hourly_rate / 3600) * t.duration_sec;
     return sum;
   }, 0);
-
   const totalDuration = tasks.reduce((sum, t) => sum + t.duration_sec, 0);
   const formatDuration = (sec: number) => {
     const h = Math.floor(sec / 3600);
@@ -67,18 +53,16 @@ export default function Section({
   };
 
   return (
-    <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-3 shadow-sm">
-      {/* 板块标题 + 统计 */}
+    <div className="card p-4">
+      {/* 板块标题 */}
       <div className="flex items-center justify-between mb-2">
-        <h3 className="font-medium text-sm text-zinc-600 dark:text-zinc-400 flex items-center gap-1.5">
+        <h3 className="font-medium text-sm text-warm-600 flex items-center gap-1.5">
           {config.icon} {config.label}
         </h3>
-        <div className="flex items-center gap-2 text-xs text-zinc-400">
-          {totalDuration > 0 && (
-            <span>⏱ {formatDuration(totalDuration)}</span>
-          )}
+        <div className="flex items-center gap-2 text-xs text-warm-400">
+          {totalDuration > 0 && <span>⏱ {formatDuration(totalDuration)}</span>}
           {totalEarnings > 0 && (
-            <span className="text-amber-600 dark:text-amber-400 font-medium">
+            <span className="text-mustard font-semibold bg-mustard-bg px-2 py-0.5 rounded-full">
               ¥{totalEarnings.toFixed(0)}
             </span>
           )}
@@ -87,7 +71,7 @@ export default function Section({
 
       {/* 任务列表 */}
       {tasks.length > 0 && (
-        <div className="mb-2">
+        <div className="mb-1">
           {tasks.map((task) => (
             <TaskItem
               key={task.id}
@@ -101,80 +85,43 @@ export default function Section({
       )}
 
       {tasks.length === 0 && !showInput && (
-        <p className="text-xs text-zinc-300 dark:text-zinc-600 py-2">今天还没有记录</p>
+        <p className="text-xs text-warm-400/50 py-2 italic">今天还没有记录</p>
       )}
 
       {/* 添加新任务 */}
       {showInput ? (
-        <div className="space-y-2 pt-1 border-t border-zinc-100 dark:border-zinc-800">
+        <div className="space-y-2 pt-3 border-t border-warm-border-light">
           <input
             autoFocus
-            className="w-full p-2 border border-zinc-300 dark:border-zinc-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-zinc-800 dark:text-white text-sm"
+            className="w-full p-2.5 border border-warm-border-light rounded-xl focus:outline-none focus:ring-2 focus:ring-mustard/20 focus:border-mustard bg-cream/50 text-warm-800 text-sm placeholder:text-warm-400/50"
             placeholder={`添加${config.label}...`}
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") handleSubmit();
-              if (e.key === "Escape") setShowInput(false);
-            }}
+            onKeyDown={(e) => { if (e.key === "Enter") handleSubmit(); if (e.key === "Escape") setShowInput(false); }}
           />
 
-          {/* 可选计时 & 时薪 */}
           <div className="flex items-center gap-3 flex-wrap">
             {canChooseTimed && (
-              <label className="flex items-center gap-1.5 text-xs text-zinc-500">
-                <input
-                  type="checkbox"
-                  checked={asTimed}
-                  onChange={(e) => {
-                    setAsTimed(e.target.checked);
-                    if (e.target.checked) setShowRate(true);
-                    else setShowRate(false);
-                  }}
-                  className="rounded"
-                />
+              <label className="flex items-center gap-1.5 text-xs text-warm-500 cursor-pointer">
+                <input type="checkbox" checked={asTimed} onChange={(e) => { setAsTimed(e.target.checked); if (e.target.checked) setShowRate(true); else setShowRate(false); }} className="rounded accent-mustard" />
                 计时
               </label>
             )}
-
             {asTimed && (
-              <>
-                {!showRate ? (
-                  <button
-                    onClick={() => setShowRate(true)}
-                    className="text-xs text-blue-500 hover:underline"
-                  >
-                    + 设置时薪
-                  </button>
-                ) : (
-                  <label className="flex items-center gap-1 text-xs text-zinc-500">
-                    ¥
-                    <input
-                      autoFocus
-                      className="w-16 p-1 border border-zinc-300 dark:border-zinc-700 rounded dark:bg-zinc-800 dark:text-white text-xs"
-                      type="number"
-                      placeholder="时薪"
-                      value={rate}
-                      onChange={(e) => setRate(e.target.value)}
-                    />
-                    /h
-                  </label>
-                )}
-              </>
+              !showRate ? (
+                <button onClick={() => setShowRate(true)} className="text-xs text-mustard hover:underline font-medium">+ 设置时薪</button>
+              ) : (
+                <label className="flex items-center gap-1 text-xs text-warm-500">
+                  ¥ <input autoFocus className="w-16 p-1.5 border border-warm-border-light rounded-xl bg-cream/50 text-warm-800 text-xs focus:outline-none focus:ring-1 focus:ring-mustard/30" type="number" placeholder="时薪" value={rate} onChange={(e) => setRate(e.target.value)} /> /h
+                </label>
+              )
             )}
-
             <div className="flex-1" />
-
-            <button
-              onClick={() => setShowInput(false)}
-              className="text-xs text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
-            >
-              取消
-            </button>
+            <button onClick={() => setShowInput(false)} className="text-xs text-warm-400 hover:text-warm-600">取消</button>
             <button
               onClick={handleSubmit}
               disabled={!input.trim()}
-              className="px-3 py-1 bg-blue-600 text-white rounded-lg text-xs font-medium hover:bg-blue-700 disabled:opacity-40 transition-colors"
+              className="px-4 py-1.5 bg-mustard text-white rounded-full text-xs font-medium hover:bg-mustard/90 disabled:opacity-30 transition-all duration-200 shadow-sm active:scale-95"
             >
               添加
             </button>
@@ -183,7 +130,7 @@ export default function Section({
       ) : (
         <button
           onClick={() => setShowInput(true)}
-          className="w-full text-left text-xs text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 py-1 transition-colors"
+          className="w-full text-left text-xs text-warm-400 hover:text-mustard py-2 transition-colors font-medium"
         >
           + 添加
         </button>

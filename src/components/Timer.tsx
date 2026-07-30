@@ -5,7 +5,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 interface TimerProps {
   initialSeconds: number;
   onTick: (totalSeconds: number) => void;
-  compact?: boolean; // 紧凑模式，用于任务行内
+  compact?: boolean;
 }
 
 export default function Timer({ initialSeconds, onTick, compact }: TimerProps) {
@@ -13,36 +13,21 @@ export default function Timer({ initialSeconds, onTick, compact }: TimerProps) {
   const [running, setRunning] = useState(false);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // 同步外部初始值
-  useEffect(() => {
-    setElapsed(initialSeconds);
-  }, [initialSeconds]);
+  useEffect(() => { setElapsed(initialSeconds); }, [initialSeconds]);
 
-  // 计时逻辑
   useEffect(() => {
     if (running) {
       intervalRef.current = setInterval(() => {
-        setElapsed((prev) => {
-          const next = prev + 1;
-          onTick(next);
-          return next;
-        });
+        setElapsed((prev) => { const next = prev + 1; onTick(next); return next; });
       }, 1000);
     } else if (intervalRef.current) {
       clearInterval(intervalRef.current);
     }
-    return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-    };
+    return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
   }, [running, onTick]);
 
-  const toggle = useCallback(() => {
-    setRunning((r) => !r);
-  }, []);
-
-  const stop = useCallback(() => {
-    setRunning(false);
-  }, []);
+  const toggle = useCallback(() => setRunning((r) => !r), []);
+  const stop = useCallback(() => setRunning(false), []);
 
   const formatTime = (sec: number) => {
     const h = Math.floor(sec / 3600);
@@ -53,27 +38,27 @@ export default function Timer({ initialSeconds, onTick, compact }: TimerProps) {
 
   return (
     <span className={`inline-flex items-center gap-1 ${compact ? "text-xs" : "text-sm"}`}>
-      <span
-        className={`font-mono tabular-nums ${
-          running ? "text-green-600 dark:text-green-400" : "text-zinc-500 dark:text-zinc-400"
-        }`}
-      >
+      <span className={`font-mono tabular-nums font-medium ${
+        running ? "text-sage" : "text-warm-400"
+      }`}>
         {formatTime(elapsed)}
       </span>
+      {/* 播放/暂停 —— 芥末黄圆钮 */}
       <button
         onClick={toggle}
-        className={`px-1.5 py-0.5 rounded text-xs font-medium transition-colors ${
+        className={`w-6 h-6 rounded-full flex items-center justify-center text-xs transition-all duration-200 ${
           running
-            ? "bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400 hover:bg-orange-200"
-            : "bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400 hover:bg-green-200"
+            ? "bg-rose-e text-warm-600 hover:bg-rose-e/70"
+            : "bg-mustard text-white hover:bg-mustard/80 shadow-sm"
         }`}
       >
         {running ? "⏸" : "▶"}
       </button>
+      {/* 停止 */}
       {running && (
         <button
           onClick={stop}
-          className="px-1.5 py-0.5 rounded text-xs font-medium bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400 hover:bg-red-200 transition-colors"
+          className="w-6 h-6 rounded-full flex items-center justify-center text-xs bg-warm-border-light text-warm-600 hover:bg-warm-border transition-colors"
         >
           ⏹
         </button>
