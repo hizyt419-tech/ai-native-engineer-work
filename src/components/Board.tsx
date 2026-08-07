@@ -15,9 +15,11 @@ export default function Board({ date }: BoardProps) {
   const [board, setBoard] = useState<DailyBoard | null>(null);
   const [tasks, setTasks] = useState<BoardTask[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
+    setError(null);
     try {
       const b = await getOrCreateBoard(date);
       setBoard(b);
@@ -25,6 +27,7 @@ export default function Board({ date }: BoardProps) {
       setTasks(t);
     } catch (err) {
       console.error("加载面板失败:", err);
+      setError(err instanceof Error ? err.message : "无法连接到数据库，请检查网络后重试");
     }
     setLoading(false);
   }, [date]);
@@ -67,6 +70,22 @@ export default function Board({ date }: BoardProps) {
       <div className="text-center py-16">
         <span className="text-3xl animate-bounce inline-block">⏳</span>
         <p className="text-sm text-warm-400 mt-3">加载中...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="text-center py-16">
+        <span className="text-3xl inline-block">😵</span>
+        <p className="text-sm text-warm-600 mt-3 font-medium">加载失败</p>
+        <p className="text-xs text-warm-400 mt-1 max-w-xs mx-auto">{error}</p>
+        <button
+          onClick={load}
+          className="mt-4 px-5 py-2 bg-mustard text-white rounded-full text-sm font-medium hover:bg-mustard/90 transition-all shadow-sm active:scale-95"
+        >
+          🔄 重试
+        </button>
       </div>
     );
   }
