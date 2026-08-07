@@ -124,3 +124,24 @@ export async function localGetDatesWithRecords(): Promise<string[]> {
     return [];
   }
 }
+
+// ======================== 每日总结 ========================
+
+export interface SummaryEntry {
+  question: string;
+  answer: string;
+}
+
+export async function localGetSummary(date: string): Promise<SummaryEntry[]> {
+  try {
+    const raw = localStorage.getItem(`wb_summary_${date}`);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+export async function localSaveSummary(date: string, entries: SummaryEntry[]) {
+  localStorage.setItem(`wb_summary_${date}`, JSON.stringify(entries));
+  markDate(date);
+}

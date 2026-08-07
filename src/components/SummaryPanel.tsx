@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { DEFAULT_SUMMARY_PROMPTS } from "../types/board";
+import { getDailyQuestions } from "../types/board";
 
 interface SummaryPanelProps {
   summary: string | null;
@@ -26,7 +26,7 @@ export default function SummaryPanel({ summary, onSave }: SummaryPanelProps) {
 
       {/* 引导问题 */}
       <div className="mb-3 space-y-1.5">
-        {DEFAULT_SUMMARY_PROMPTS.map((q, i) => (
+        {getDailyQuestions(new Date().toISOString().slice(0, 10)).map((q, i) => (
           <p
             key={i}
             className="text-xs text-warm-400 pl-3 border-l-2 border-mustard-light leading-relaxed"

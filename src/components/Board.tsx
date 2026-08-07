@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { SECTIONS } from "../types/board";
 import type { BoardTask, NewTask, DailyBoard } from "../types/board";
-import { getOrCreateBoard, getTasks, createTask, updateTask, deleteTask, updateBoard } from "../lib/boardDb";
+import { getOrCreateBoard, getTasks, createTask, updateTask, deleteTask } from "../lib/boardDb";
 import Section from "./Section";
-import SummaryPanel from "./SummaryPanel";
+import SummaryModal from "./SummaryModal";
 
 interface BoardProps {
   date: string;
@@ -16,6 +16,7 @@ export default function Board({ date }: BoardProps) {
   const [tasks, setTasks] = useState<BoardTask[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [summaryOpen, setSummaryOpen] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -57,13 +58,8 @@ export default function Board({ date }: BoardProps) {
     }
   };
 
-  const handleSaveSummary = async (summary: string) => {
-    if (!board) return;
-    await updateBoard(board.id, { summary });
-    setBoard((prev) => (prev ? { ...prev, summary } : null));
-  };
-
   const getSectionTasks = (key: string) => tasks.filter((t) => t.section === key);
+  const completedTasks = useMemo(() => tasks.filter((t) => t.is_done), [tasks]);
 
   if (loading) {
     return (
@@ -103,7 +99,22 @@ export default function Board({ date }: BoardProps) {
           onUpdateDuration={handleUpdateDuration}
         />
       ))}
-      <SummaryPanel summary={board?.summary ?? null} onSave={handleSaveSummary} />
+
+      {/* 写总结按钮 */}
+      <button
+        onClick={() => setSummaryOpen(true)}
+        className="w-full card p-4 text-center text-sm text-warm-500 hover:text-mustard transition-colors font-medium border-dashed"
+      >
+        📝 写今日总结
+      </button>
+
+      {/* 总结弹窗 */}
+      <SummaryModal
+        open={summaryOpen}
+        onClose={() => setSummaryOpen(false)}
+        date={date}
+        completedTasks={completedTasks}
+      />
     </div>
   );
 }
