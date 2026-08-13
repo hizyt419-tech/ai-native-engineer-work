@@ -2,4 +2,5 @@
 # 让 /dashboard 等路径自动映射到对应的 .html 文件
 /dashboard  /dashboard.html  200
 /notes      /notes.html      200
+/news       /news.html       200
 /library    /library.html    200

@@ -1,6 +1,6 @@
 # 每日工作台 — 开发日志
 
-> 最后更新：2026-07-30
+> 最后更新：2026-08-13
 
 ---
 
@@ -20,18 +20,32 @@
 
 ### ✅ 核心：每日工作台 (`/`)
 
-- 5 个固定板块：上班、兼职、运动、娱乐、临时事件
+- 3 个固定板块：兼职、运动、临时事件
 - 兼职板块支持计时 + 时薪算钱
 - 临时事件可选计时
-- 日历切换（月视图，可点击切换日期）
-- 今日总结（含固定引导问题，AI 后续接入）
-- 数据持久化到 Supabase
+- 日历切换（常驻大日历，有记录打点，可切换任意日期）
+- 今日总结（SummaryModal 弹窗，每日不同问题，可回顾已完成任务）
+- 数据持久化到 Supabase（离线自动降级 localStorage）
+
+### ✅ 新闻 (`/news`，2026-08-13 新增)
+
+- 每日精选：按星期轮换主题（宏观经济/制造装备/科技前沿/能源材料/社会民生/深度观察），打破信息茧房
+- 社会新闻 / 生产新闻 分类 Tab + 检索条（本地即时过滤）
+- 后端 Cloudflare Pages Function 抓取 RSS（`GET /api/news`），多源并发、失败自动跳过、10 分钟缓存
+- 长按/选中句子 → 操作条：📝 存笔记 / 🤖 AI 解读（DeepSeek，`POST /api/explain`）
+- AI 解读结果可一键存入笔记；未配置 `DEEPSEEK_API_KEY` 时给出配置提示
+
+### ✅ 笔记持久化（2026-08-13）
+
+- 笔记从内存改为 localStorage 持久化（`src/lib/noteStore.ts`）
+- 新闻页存的句子 / AI 解读与笔记页共用同一份数据，刷新不丢
 
 ### ✅ 底部导航
 
 - 工作台 (`/`)
 - 看板 (`/dashboard`) — 统计卡片占位
-- 笔记 (`/notes`) — 快速笔记/链接/灵感
+- 笔记 (`/notes`) — 快速笔记/链接/灵感（本地持久化）
+- 新闻 (`/news`) — 精选新闻 + AI 解读
 - 清单 (`/library`) — 书籍/电影/剧集追踪
 
 ### ✅ 数据库（Supabase）
@@ -43,7 +57,8 @@
 
 - Cloudflare Pages 连接 GitHub 自动部署
 - 静态导出模式 (`output: "export"`)
-- 环境变量已配置
+- 环境变量已配置（Supabase）
+- Pages Functions：`/api/news`、`/api/explain`（需在后台添加 `DEEPSEEK_API_KEY`）
 
 ---
 
@@ -67,8 +82,8 @@
 ### 🟡 功能待完善
 
 - 看板：实际数据统计、收入趋势图、周报生成
-- 笔记：需接入 Supabase 持久化
-- 清单：需接入 Supabase 持久化、搜索添加
+- 新闻：AI 解读需在 Cloudflare Pages 后台配置 `DEEPSEEK_API_KEY` 环境变量
+- 笔记/清单：接入 Supabase 持久化（笔记当前为 localStorage）
 - AI 引导总结
 
 ### 🟡 技术债务
@@ -84,6 +99,9 @@
 # 本地开发
 cd E:\CODE-work\my-learning-notes-app
 npm run dev          # 启动 → http://localhost:3000
+
+# 本地跑 Pages Function（含 /api/news、/api/explain）
+npx wrangler pages dev out
 
 # 构建检查
 npm run build
@@ -113,10 +131,11 @@ src/
 │   ├── page.tsx            # 工作台主页
 │   ├── globals.css         # 全局样式 + 设计系统变量
 │   ├── dashboard/page.tsx  # 看板（占位）
-│   ├── notes/page.tsx      # 笔记（占位，未持久化）
+│   ├── notes/page.tsx      # 笔记（localStorage 持久化）
+│   ├── news/page.tsx       # 新闻（精选 + 分类 + 检索 + AI 解读）
 │   └── library/page.tsx    # 清单（占位，未持久化）
 ├── components/
-│   ├── BottomNav.tsx       # 底部 4 Tab 导航
+│   ├── BottomNav.tsx       # 底部 5 Tab 导航
 │   ├── Board.tsx           # 当日面板容器
 │   ├── Section.tsx         # 单个板块
 │   ├── TaskItem.tsx        # 任务行
@@ -125,7 +144,15 @@ src/
 │   └── SummaryPanel.tsx    # 今日总结
 ├── lib/
 │   ├── supabaseClient.ts   # Supabase 客户端（懒加载）
-│   └── boardDb.ts          # 数据库 CRUD
+│   ├── boardDb.ts          # 数据库 CRUD
+│   └── noteStore.ts        # 笔记持久化（localStorage）
 └── types/
     └── board.ts            # 类型定义 + 板块配置
+
+functions/                  # Cloudflare Pages Functions（项目根目录）
+├── api/
+│   ├── news.ts             # 抓取新闻 RSS（GET /api/news）
+│   └── explain.ts          # DeepSeek AI 解读（POST /api/explain）
+
+news-sources.ts             # 新闻源配置（增删源改这里）
 ```

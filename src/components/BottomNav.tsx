@@ -6,6 +6,7 @@ const TABS = [
   { path: "/", label: "工作台", icon: "📋" },
   { path: "/dashboard", label: "看板", icon: "📊" },
   { path: "/notes", label: "笔记", icon: "📝" },
+  { path: "/news", label: "新闻", icon: "📰" },
   { path: "/library", label: "清单", icon: "📚" },
 ];
 
@@ -18,28 +19,26 @@ export default function BottomNav() {
       <div className="max-w-2xl mx-auto flex items-center justify-around h-16 px-2">
         {TABS.map((tab) => {
           const active =
-            tab.path === "/"
-              ? pathname === "/"
-              : pathname.startsWith(tab.path);
+            tab.path === "/" ? pathname === "/" : pathname.startsWith(tab.path);
 
           return (
             <button
               key={tab.path}
               onClick={() => router.push(tab.path)}
-              className={`flex flex-col items-center justify-center gap-0.5 w-16 h-14 rounded-2xl transition-all duration-200 ${
+              className={`flex flex-col items-center justify-center gap-0.5 w-14 h-14 rounded-2xl transition-all duration-200 ${
                 active
                   ? "bg-mustard-bg text-warm-800"
                   : "text-warm-400 hover:text-warm-600"
               }`}
             >
-              <span className={`text-xl transition-transform duration-200 ${active ? "scale-110" : ""}`}>
-                {tab.icon}
-              </span>
               <span
-                className={`text-[10px] font-medium ${
-                  active ? "font-semibold" : ""
+                className={`text-xl transition-transform duration-200 ${
+                  active ? "scale-110" : ""
                 }`}
               >
+                {tab.icon}
+              </span>
+              <span className={`text-[10px] font-medium ${active ? "font-semibold" : ""}`}>
                 {tab.label}
               </span>
             </button>
