@@ -117,3 +117,69 @@ input, textarea, button, select {
   box-shadow: var(--shadow-sm);
   border: 1px solid var(--border-light);
 }
+
+/* 新闻列表语义色条（放在 .card 之后以覆盖其边框简写） */
+.edge-social {
+  border-left: 4px solid #c5d5e8;
+}
+.edge-industry {
+  border-left: 4px solid #b5c4a1;
+}
+
+/* ======================== 新闻页设计系统（frontend-design，2026-08-13） ======================== */
+
+/* 展示字体：中文衬线，仅用于今日精选标题与 AI 解读正文 */
+.font-display {
+  font-family: "Songti SC", "Noto Serif SC", "SimSun", "STSong", serif;
+  letter-spacing: 0.01em;
+}
+
+/* 圆形主题印章：承载每日轮换主题，新闻页唯一的签名元素 */
+.stamp {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 3.1rem;
+  height: 3.1rem;
+  border-radius: 9999px;
+  border: 2px solid rgba(212, 168, 83, 0.6);
+  color: #a97b2f;
+  font-family: "Songti SC", "Noto Serif SC", "SimSun", serif;
+  font-size: 0.6rem;
+  font-weight: 700;
+  line-height: 1.25;
+  text-align: center;
+  transform: rotate(-4deg);
+  background:
+    radial-gradient(circle at 32% 26%, rgba(212, 168, 83, 0.12), transparent 62%),
+    rgba(251, 245, 232, 0.7);
+  box-shadow: 0 1px 4px rgba(139, 115, 85, 0.14);
+  flex-shrink: 0;
+}
+
+/* 纸感点纹：仅用于今日精选卡片 */
+.paper-dots {
+  background-image: radial-gradient(rgba(139, 115, 85, 0.055) 1px, transparent 1px);
+  background-size: 14px 14px;
+}
+
+/* 精选卡片错峰淡入 */
+@keyframes rise-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.rise-in { animation: rise-in 0.45s ease-out both; }
+.rise-in-1 { animation-delay: 0.05s; }
+.rise-in-2 { animation-delay: 0.12s; }
+.rise-in-3 { animation-delay: 0.19s; }
+
+/* 键盘焦点可见（低优先级，不覆盖组件自带样式） */
+:where(button, a, input, textarea):focus-visible {
+  outline: 2px solid #d4a853;
+  outline-offset: 2px;
+}
+
+/* 尊重系统「减少动效」设置 */
+@media (prefers-reduced-motion: reduce) {
+  .rise-in, .rise-in-1, .rise-in-2, .rise-in-3 { animation: none; }
+}

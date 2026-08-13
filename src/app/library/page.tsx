@@ -1,13 +1,23 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 interface ListItem {
   id: number;
   title: string;
+  author?: string;
   category: "book" | "movie" | "show";
   status: "want" | "doing" | "done";
   rating?: number;
+}
+
+interface BookResult {
+  id: string;
+  title: string;
+  authors: string[];
+  publisher?: string;
+  year?: string;
+  thumbnail?: string;
 }
 
 const CATEGORIES = [
@@ -29,11 +39,46 @@ export default function LibraryPage() {
   const [showAdd, setShowAdd] = useState(false);
   const [newTitle, setNewTitle] = useState("");
 
+  // 书籍联想检索
+  const [suggestions, setSuggestions] = useState<BookResult[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [showSuggest, setShowSuggest] = useState(false);
+  const searchReq = useRef(0);
+
   const filtered = items.filter((i) => {
     if (i.category !== activeCategory) return false;
     if (activeStatus && i.status !== activeStatus) return false;
     return true;
   });
+
+  // 输入联想：书籍分类输入时防抖检索
+  useEffect(() => {
+    const q = newTitle.trim();
+    if (activeCategory !== "book" || !q) {
+      setSuggestions([]);
+      setShowSuggest(false);
+      setSearching(false);
+      return;
+    }
+    const reqId = ++searchReq.current;
+    setSearching(true);
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/book-search?q=${encodeURIComponent(q)}`);
+        const data = await res.json().catch(() => null);
+        if (reqId !== searchReq.current) return;
+        setSuggestions(data?.items || []);
+        setShowSuggest(true);
+      } catch {
+        if (reqId !== searchReq.current) return;
+        setSuggestions([]);
+        setShowSuggest(true);
+      } finally {
+        if (reqId === searchReq.current) setSearching(false);
+      }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [newTitle, activeCategory]);
 
   const handleAdd = () => {
     if (!newTitle.trim()) return;
@@ -48,6 +93,23 @@ export default function LibraryPage() {
     ]);
     setNewTitle("");
     setShowAdd(false);
+  };
+
+  const handlePickBook = (book: BookResult) => {
+    setItems((prev) => [
+      {
+        id: Date.now(),
+        title: book.title,
+        author: book.authors?.[0],
+        category: "book",
+        status: "want",
+      },
+      ...prev,
+    ]);
+    setNewTitle("");
+    setSuggestions([]);
+    setShowSuggest(false);
+    // 保留输入框，方便连续添加多本
   };
 
   const handleStatusChange = (id: number, status: "want" | "doing" | "done") => {
@@ -106,16 +168,81 @@ export default function LibraryPage() {
         {/* 添加栏 */}
         {showAdd ? (
           <div className="card p-4 mb-4 space-y-3">
-            <input
-              autoFocus
-              className="w-full p-2.5 border border-warm-border-light rounded-xl focus:outline-none focus:ring-2 focus:ring-mustard/20 focus:border-mustard bg-cream/50 text-warm-800 text-sm placeholder:text-warm-400/50"
-              placeholder={`添加${CATEGORIES.find((c) => c.key === activeCategory)?.label}...`}
-              value={newTitle}
-              onChange={(e) => setNewTitle(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter") handleAdd(); if (e.key === "Escape") setShowAdd(false); }}
-            />
+            <div className="relative">
+              <textarea
+                autoFocus
+                className="w-full p-2.5 border border-warm-border-light rounded-xl focus:outline-none focus:ring-2 focus:ring-mustard/20 focus:border-mustard bg-cream/50 text-warm-800 text-sm placeholder:text-warm-400/50 resize-none"
+                rows={activeCategory === "book" ? 2 : 3}
+                placeholder={
+                  activeCategory === "book"
+                    ? "输入书名或作者，如：生育制度 / 费孝通…"
+                    : `添加${CATEGORIES.find((c) => c.key === activeCategory)?.label}...`
+                }
+                value={newTitle}
+                onChange={(e) => setNewTitle(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    handleAdd();
+                  }
+                  if (e.key === "Escape") {
+                    setShowSuggest(false);
+                    if (!newTitle) setShowAdd(false);
+                  }
+                }}
+              />
+
+              {/* 书籍联想下拉 */}
+              {activeCategory === "book" && showSuggest && (
+                <div className="absolute left-0 right-0 top-full mt-1.5 z-20 bg-white rounded-2xl shadow-soft-lg border border-warm-border-light overflow-hidden max-h-72 overflow-y-auto">
+                  {searching && suggestions.length === 0 ? (
+                    <p className="px-4 py-3 text-xs text-warm-400">正在检索…</p>
+                  ) : suggestions.length === 0 ? (
+                    <p className="px-4 py-3 text-xs text-warm-400">
+                      没有找到相关书目，回车可直接添加
+                    </p>
+                  ) : (
+                    suggestions.map((b) => (
+                      <button
+                        key={b.id}
+                        onClick={() => handlePickBook(b)}
+                        className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-mustard-bg/60 transition-colors text-left"
+                      >
+                        {b.thumbnail ? (
+                          <img
+                            src={b.thumbnail}
+                            alt=""
+                            className="w-9 h-12 object-cover rounded-md bg-warm-border-light flex-shrink-0"
+                          />
+                        ) : (
+                          <span className="w-9 h-12 rounded-md bg-warm-border-light flex items-center justify-center text-lg flex-shrink-0">
+                            📖
+                          </span>
+                        )}
+                        <span className="flex-1 min-w-0">
+                          <span className="block text-sm font-medium text-warm-800 truncate">
+                            {b.title}
+                          </span>
+                          <span className="block text-xs text-warm-400 truncate">
+                            {b.authors.join(" / ")}
+                            {b.year ? ` · ${b.year}` : ""}
+                            {b.publisher ? ` · ${b.publisher}` : ""}
+                          </span>
+                        </span>
+                      </button>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
+
             <div className="flex justify-end gap-2">
-              <button onClick={() => setShowAdd(false)} className="px-4 py-1.5 text-xs text-warm-400 hover:text-warm-600">取消</button>
+              <button
+                onClick={() => setShowAdd(false)}
+                className="px-4 py-1.5 text-xs text-warm-400 hover:text-warm-600"
+              >
+                取消
+              </button>
               <button
                 onClick={handleAdd}
                 disabled={!newTitle.trim()}
@@ -145,7 +272,11 @@ export default function LibraryPage() {
                 ? "还没有添加任何内容"
                 : "没有符合筛选条件的内容"}
             </p>
-            <p className="text-warm-400/50 text-xs mt-1">看到好书好片，记下来别忘</p>
+            <p className="text-warm-400/50 text-xs mt-1">
+              {activeCategory === "book"
+                ? "输入书名就能自动联想，比如：生育制度"
+                : "看到好书好片，记下来别忘"}
+            </p>
           </div>
         ) : (
           <div className="space-y-2">
@@ -156,6 +287,7 @@ export default function LibraryPage() {
                   <p className="text-xs text-warm-400 mt-0.5">
                     {CATEGORIES.find((c) => c.key === item.category)?.icon}{" "}
                     {STATUSES.find((s) => s.key === item.status)?.label}
+                    {item.author ? ` · ${item.author}` : ""}
                   </p>
                 </div>
                 {/* 状态切换 */}
