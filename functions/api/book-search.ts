@@ -22,11 +22,12 @@ function json(data: unknown, status = 200): Response {
   });
 }
 
-async function searchGoogle(q: string): Promise<BookResult[]> {
+async function searchGoogle(q: string, apiKey?: string): Promise<BookResult[]> {
   const url =
     "https://www.googleapis.com/books/v1/volumes?q=" +
     encodeURIComponent(q) +
-    "&country=CN&maxResults=8";
+    "&country=CN&maxResults=8" +
+    (apiKey ? `&key=${encodeURIComponent(apiKey)}` : "");
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
   try {
@@ -82,7 +83,10 @@ async function searchOpenLibrary(q: string): Promise<BookResult[]> {
   }
 }
 
-export async function onRequestGet(context: { request: Request }): Promise<Response> {
+export async function onRequestGet(context: {
+  request: Request;
+  env: { GOOGLE_BOOKS_API_KEY?: string };
+}): Promise<Response> {
   const url = new URL(context.request.url);
   const q = (url.searchParams.get("q") || "").trim().slice(0, 50);
   if (!q) return json({ items: [] });
@@ -90,7 +94,7 @@ export async function onRequestGet(context: { request: Request }): Promise<Respo
   try {
     let items: BookResult[] = [];
     try {
-      items = await searchGoogle(q);
+      items = await searchGoogle(q, context.env.GOOGLE_BOOKS_API_KEY);
     } catch {
       items = [];
     }
